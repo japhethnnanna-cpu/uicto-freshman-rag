@@ -28,6 +28,24 @@ export async function POST(request) {
       );
     }
 
+    // 0. Track every question for future student-information analytics
+    let trackedQuestion = null;
+
+    const { data: trackedRow, error: trackError } = await supabase
+      .from("chat_questions")
+      .insert({
+        question: userQuestion,
+      })
+      .select("id")
+      .single();
+
+    // Tracking must never stop the RAG from answering
+    if (trackError) {
+      console.error("Question tracking error:", trackError);
+    } else {
+      trackedQuestion = trackedRow;
+    }
+
     // 1. Create embedding for user's question
     const embeddingResponse = await ai.models.embedContent({
       model: "gemini-embedding-2",
@@ -41,7 +59,9 @@ export async function POST(request) {
       embeddingResponse.embeddings?.[0]?.values;
 
     if (!queryEmbedding || queryEmbedding.length !== 768) {
-      throw new Error("Failed to generate a valid 768-dimensional embedding.");
+      throw new Error(
+        "Failed to generate a valid 768-dimensional embedding."
+      );
     }
 
     console.log(
@@ -70,6 +90,22 @@ export async function POST(request) {
 
     // 3. Reject questions without sufficiently relevant context
     if (!matches || matches.length === 0) {
+      if (trackedQuestion?.id) {
+        const { error: updateError } = await supabase
+          .from("chat_questions")
+          .update({
+            answered: false,
+          })
+          .eq("id", trackedQuestion.id);
+
+        if (updateError) {
+          console.error(
+            "Question tracking update error:",
+            updateError
+          );
+        }
+      }
+
       return Response.json({
         answer:
           "I don't have enough information to answer that from the UICTO knowledge base.",
@@ -84,6 +120,24 @@ export async function POST(request) {
         bestMatch.similarity
       ).toFixed(4)})`
     );
+
+    // Track the category and retrieval confidence
+    if (trackedQuestion?.id) {
+      const { error: updateError } = await supabase
+        .from("chat_questions")
+        .update({
+          matched_category: bestMatch.category ?? null,
+          confidence: Number(bestMatch.similarity),
+        })
+        .eq("id", trackedQuestion.id);
+
+      if (updateError) {
+        console.error(
+          "Question tracking update error:",
+          updateError
+        );
+      }
+    }
 
     // 4. Assemble retrieved records into grounded context
     const context = matches
@@ -168,6 +222,23 @@ ${userQuestion}
       throw new Error("NVIDIA returned an empty answer.");
     }
 
+    // Mark the question as successfully answered
+    if (trackedQuestion?.id) {
+      const { error: updateError } = await supabase
+        .from("chat_questions")
+        .update({
+          answered: true,
+        })
+        .eq("id", trackedQuestion.id);
+
+      if (updateError) {
+        console.error(
+          "Question tracking update error:",
+          updateError
+        );
+      }
+    }
+
     console.log(
       `✅ Total request time: ${Date.now() - startTime}ms`
     );
@@ -187,7 +258,8 @@ ${userQuestion}
 
     return Response.json(
       {
-        error: "Something went wrong while processing your question.",
+        error:
+          "Something went wrong while processing your question.",
       },
       {
         status: 500,
