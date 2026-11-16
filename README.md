@@ -140,3 +140,9 @@ Staff may upload DOCX, UTF-8 TXT or Markdown, up to 3 MB and 60,000 extracted ch
 Greetings and thanks use deterministic responses without AI calls. School questions still require reviewed, in-date, session-matching excerpts. Switching providers changes selection only, not the trusted source policy. Gemini generation succeeded in the live pre-release probe; NVIDIA generation timed out, so its key validity remains unconfirmed. Ollama Cloud needs a separate account/key and is not configured.
 
 The first Vercel preview returned HTTP 404 for the deprecated Gemini 2.5 Flash selector, despite its availability to the local key. The selector now uses stable Gemini 3.5 Flash-Lite with minimal thinking. Safe numeric provider status codes are included in operational telemetry; provider response bodies and credentials are not logged.
+
+### Editing and approving pending records
+
+In **Staff dashboard > Knowledge base**, the default filter is **Pending review**. Choose **Edit & review** on an existing record to change its question, answer, category, claim key, session and source. **Save draft** keeps it pending with no embedding; incomplete answers are allowed. **Approve answer** requires a verified answer, an allowed official source URL or an uploaded document, a valid session where applicable, an expiry within 90 days and explicit reviewer confirmation. Approval updates the original ID rather than creating a duplicate, and creates a fresh question embedding. To change an approved answer, withdraw it first.
+
+The pending-review migration adds a version counter covering all knowledge updates and before/after snapshots in the private staff audit table. Stale edits return HTTP 409 instead of overwriting another review. No existing records are approved by the migration.

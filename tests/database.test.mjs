@@ -29,6 +29,7 @@ test("migration and retrieval against disposable PostgreSQL with pgvector", asyn
   );
   await db.exec(migration);
   await db.exec(await readFile(new URL("../supabase/migrations/20261116000631_staff_dashboard.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/20261116004324_staff_pending_review.sql", import.meta.url), "utf8"));
   const rows = async (sql, params) => (await db.query(sql, params)).rows;
   const v = JSON.stringify(
     Array.from({ length: 768 }, (_, i) => (i === 0 ? 1 : 0)),
@@ -99,6 +100,30 @@ test("migration and retrieval against disposable PostgreSQL with pgvector", asyn
     },
   );
   await db.exec("set role service_role");
+  await t.test("pending edits preserve identity; approval, stale-write rejection and audit are atomic", async () => {
+    const reviewer="00000000-0000-4000-8000-000000000002";
+    const [{id}]=await rows("insert into school_knowledge(external_id,question,answer,category) values('review-fixture','Fixture question','Unfinished','test') returning id");
+    const draft={question:"Fixture question revised",answer:"",category:"test",source:"https://uicto.edu.ng/contact",claim_key:"fixture-review",academic_session:"2026/2027"};
+    const call=(version,item,approve,embedding=null)=>rows("select review_pending_answer($1,$2,$3,$4,$5,$6) version",[id,version,reviewer,JSON.stringify(item),approve,embedding]);
+    for (const role of ["anon","authenticated"]) assert.equal((await rows("select has_function_privilege($1,'review_pending_answer(bigint,integer,uuid,jsonb,boolean,extensions.vector)','execute') ok",[role]))[0].ok,false);
+    assert.equal((await call(0,draft,false))[0].version,1);
+    assert.deepEqual(await rows("select external_id,review_status,embedding,reviewed_on from school_knowledge where id=$1",[id]),[{external_id:"review-fixture",review_status:"pending",embedding:null,reviewed_on:null}]);
+    await assert.rejects(call(0,draft,false),/Record changed/);
+    const expires=(await rows("select (current_date+7)::text expires"))[0].expires;
+    const approved={...draft,answer:"Verified synthetic fixture answer.",expires_on:expires};
+    await assert.rejects(call(1,approved,true),/Verified answer/);
+    assert.equal((await call(1,approved,true,v))[0].version,2);
+    assert.ok((await match("2026/2027")).some(row=>row.answer===approved.answer));
+    await assert.rejects(call(2,draft,false),/Record changed/);
+    const audit=await rows("select action,before_record,after_record from staff_audit where knowledge_id=$1 order by id",[id]);
+    assert.deepEqual(audit.map(row=>row.action),["edit_pending","approve_pending"]);
+    assert.equal(audit[0].before_record.question,"Fixture question");
+    assert.equal(audit[1].after_record.review_status,"approved");
+    assert.ok(!Object.hasOwn(audit[1].after_record,"embedding"));
+    await rows("select withdraw_staff_answer($1,$2)",[id,reviewer]);
+    assert.equal((await rows("select review_version from school_knowledge where id=$1",[id]))[0].review_version,3);
+    assert.ok(!(await match("2026/2027")).some(row=>row.answer===approved.answer));
+  });
   await t.test("staff tables deny students; publication and withdrawal are atomic and audited", async () => {
     for (const role of ["anon", "authenticated"]) {
       for (const table of ["staff_documents", "chat_events", "staff_audit"])
