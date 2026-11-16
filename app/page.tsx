@@ -1,10 +1,12 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { Citation, type Source } from "./citation";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
+  sources?: Source[];
 };
 
 const suggestedQuestions = [
@@ -58,6 +60,7 @@ export default function Home() {
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
+        signal: AbortSignal.timeout(42000),
         headers: {
           "Content-Type": "application/json",
         },
@@ -66,7 +69,7 @@ export default function Home() {
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(
@@ -78,20 +81,20 @@ export default function Home() {
         ...current,
         {
           role: "assistant",
+          sources: Array.isArray(data.sources) ? data.sources : [],
           content:
             data.answer ||
             "I couldn't generate an answer.",
         },
       ]);
     } catch (error) {
-      console.error(error);
-
       setMessages((current) => [
         ...current,
         {
           role: "assistant",
           content:
-            "Sorry, something went wrong while processing your question. Please try again.",
+            error instanceof Error && !(error instanceof TypeError) && error.name === "Error"
+              ? error.message : "Couldn’t reach the assistant. Check your connection and try again.",
         },
       ]);
     } finally {
@@ -122,9 +125,8 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            Online
+          <div role="status" className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600">
+            {loading ? "Searching…" : "Knowledge base"}
           </div>
         </div>
       </header>
@@ -174,7 +176,7 @@ export default function Home() {
         ) : (
           /* Chat screen */
           <div className="flex flex-1 flex-col py-6">
-            <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5">
+            <div role="log" aria-live="polite" className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5">
               {messages.map((message, index) => (
                 <div
                   key={`${message.role}-${index}`}
@@ -191,7 +193,8 @@ export default function Home() {
                         : "rounded-bl-md border border-slate-200 bg-white text-slate-700 shadow-sm"
                     }`}
                   >
-                    {message.content}
+                    <p className="whitespace-pre-line">{message.content}</p>
+                    {message.sources?.map(s => <Citation key={s.url ?? s.title} source={s} />)}
                   </div>
                 </div>
               ))}
@@ -219,6 +222,8 @@ export default function Home() {
           >
             <input
               type="text"
+              aria-label="Your question about UICTO"
+              maxLength={800}
               value={question}
               onChange={(event) =>
                 setQuestion(event.target.value)
@@ -239,8 +244,8 @@ export default function Home() {
           </form>
 
           <p className="mt-3 text-center text-[11px] text-slate-400">
-            Answers are generated from the UICTO
-            knowledge base.
+            Questions and replies are recorded for authorised staff to improve guidance.
+            Don’t share student numbers, passwords or personal records. <a href="/admin" className="underline">Staff sign-in</a>
           </p>
         </div>
       </section>

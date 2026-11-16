@@ -1,0 +1,175 @@
+.shell {
+  max-width: 1100px;
+  margin: auto;
+  padding: 24px;
+  color: #172c38;
+  font-size: 15px;
+  line-height: 1.6;
+}
+.header,
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.shell h1 {
+  font-size: 28px;
+  font-weight: 750;
+  margin: 12px 0;
+}
+.shell h2 {
+  font-size: 21px;
+  font-weight: 700;
+  margin: 22px 0 8px;
+}
+.shell h3 {
+  font-size: 17px;
+  font-weight: 650;
+  margin: 12px 0 6px;
+}
+.shell p {
+  margin: 8px 0;
+}
+.shell a {
+  color: #0f766e;
+  text-decoration: underline;
+}
+.shell small,
+.shell time {
+  color: #526273;
+}
+.shell button {
+  border: 1px solid #9eafb9;
+  border-radius: 8px;
+  background: white;
+  padding: 9px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.shell button:hover,
+.shell button[aria-pressed="true"] {
+  background: #e0f2ee;
+  border-color: #0f766e;
+}
+.shell button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.shell button:focus-visible,
+.shell input:focus-visible,
+.shell textarea:focus-visible,
+.shell select:focus-visible {
+  outline: 3px solid #0f766e;
+  outline-offset: 2px;
+}
+.card {
+  background: white;
+  border: 1px solid #d5dfe6;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 16px 0;
+  overflow-wrap: anywhere;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+.notice {
+  padding: 14px;
+  background: #e8f3f6;
+  border: 1px solid #9db8c6;
+  border-radius: 8px;
+  white-space: pre-wrap;
+}
+.form {
+  display: grid;
+  gap: 14px;
+  max-width: 800px;
+}
+.shell label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+}
+.shell input,
+.shell textarea,
+.shell select {
+  border: 1px solid #9eafb9;
+  border-radius: 7px;
+  padding: 10px;
+  max-width: 100%;
+  min-width: 0;
+  background: white;
+  font-weight: 400;
+}
+.form button {
+  justify-self: start;
+  background: #0f766e;
+  color: white;
+}
+.form button:hover {
+  background: #115e59;
+}
+.form p {
+  font-size: 13px;
+  color: #526273;
+  margin: 0;
+}
+.metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.metrics .card {
+  flex: 1;
+  min-width: 160px;
+  margin: 12px 0;
+}
+.metrics strong {
+  display: block;
+  font-size: 28px;
+}
+.metrics span {
+  font-size: 13px;
+}
+.answer {
+  white-space: pre-wrap;
+}
+.document {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 440px;
+  overflow: auto;
+  border: 1px solid #ccd8df;
+  background: #f7fafb;
+  padding: 16px;
+  font-family: inherit;
+  font-size: 14px;
+}
+.shell .check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.check input {
+  margin-top: 6px;
+}
+@media (max-width: 600px) {
+  .shell {
+    padding: 16px;
+  }
+  .card {
+    padding: 14px;
+  }
+  .shell h1 {
+    font-size: 24px;
+  }
+  .header {
+    gap: 8px;
+  }
+}
