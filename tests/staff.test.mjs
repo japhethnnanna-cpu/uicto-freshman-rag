@@ -1,0 +1,34 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { smallTalk, redact } from "../lib/conversation.mjs";
+import { extractDocument, MAX_UPLOAD } from "../lib/documents.mjs";
+import { reviewInput } from "../lib/review.mjs";
+import { handleChat } from "../lib/chat.mjs";
+
+test("greetings need no model but never swallow questions with a greeting prefix", async () => {
+  for (const text of ["Hi!", "hey", "Hello there", "good morning", "yoo", "Thanks", "Who are you?"]) assert.ok(smallTalk(text));
+  for (const text of ["Hi, what are fees?", "hello give me the WiFi password", "What is a greeting?"]) assert.equal(smallTalk(text), null);
+  const events = [];
+  const response = await handleChat(new Request("http://localhost/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: "hey" }) }), {
+    allow: async () => true, embed: () => assert.fail("Greeting reached AI"), record: event => events.push(event),
+  });
+  assert.equal((await response.json()).outcome, "greeting");
+  assert.match(events[0].answer, /Hello/);
+});
+test("tracking removes common emails, IDs, phones and credentials while retaining session context", () => {
+  const clean = redact("2026/2027 fees: email student@example.com phone +234 801 234 5678 ID ICT/2026/1234 password: private123");
+  assert.match(clean, /2026\/2027 fees/);
+  for (const secret of ["student@example.com", "801 234", "ICT/2026", "private123"]) assert.ok(!clean.includes(secret));
+});
+test("document extraction accepts text and bounded DOCX without rendering or following links", async () => {
+  const zipped = Buffer.from("UEsDBBQAAAAIAF0IcF1UZi6KfgAAAMEAAAARAAAAd29yZC9kb2N1bWVudC54bWxtjrEOAiEQRH9lc4Wl9Ij8hIk9wh6SyEL2Frn7+wuXGC1s3jQzL2O6DsW3jCSw5hctul+nxqT7ZE3XjxK2kXWAB8TekdOcMECj9EZekmwQWwqOPMJcGAQXSRTPRo36IB88JL+mG/pCAapjF9nVJ5xcrhcQXOXfWH3+qO9puwNQSwECFAAUAAAACABdCHBdVGYuin4AAADBAAAAEQAAAAAAAAAAAAAAgAEAAAAAd29yZC9kb2N1bWVudC54bWxQSwUGAAAAAAEAAQA/AAAArQAAAAAA", "base64");
+  assert.equal(await extractDocument(zipped, "guide.docx"), "Verified university guidance for testing.\nSecond paragraph & text.");
+  assert.equal(await extractDocument(Buffer.from("Authoritative guidance supplied by staff."), "guide.txt"), "Authoritative guidance supplied by staff.");
+  for (const [buffer, name] of [[zipped, "payload.exe"], [Buffer.alloc(MAX_UPLOAD+1), "large.txt"], [Buffer.from("not a zip"), "fake.docx"], [Buffer.from([0,1,2]), "binary.txt"]]) await assert.rejects(extractDocument(buffer, name));
+});
+test("staff publication requires explicit review, matching session and bounded expiry", () => {
+  const now = new Date("2026-11-16T00:00:00Z");
+  const body = { question: "Where is the library?", answer: "Refer to the signed campus guide.", category: "Library", claim_key: "library-location", expires_on: "2026-12-01", confirmed: true };
+  assert.equal(reviewInput(body, now).academic_session, null);
+  for (const changes of [{ confirmed:false }, {expires_on:"2027-12-01"}, {expires_on:"2026-02-30"}, {question:"What are the fees?"}, {academic_session:"2026/2027", answer:"2025/26 tuition was 123."}, {claim_key:"unsafe<script>"}]) assert.throws(() => reviewInput({...body,...changes},now));
+});

@@ -6,25 +6,36 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --import tsx --test tests/*.test.mjs",
+    "sync": "node scripts/official-sync.mjs",
+    "import": "node scripts/import-knowledge.mjs",
+    "knowledge": "node scripts/prepare-reviewed-knowledge.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.23.0",
-    "@supabase/supabase-js": "^2.116.0",
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.116.0",
     "dotenv": "^18.0.2",
-    "next": "16.3.5",
+    "ipaddr.js": "2.2.0",
+    "next": "16.4.6",
+    "node-html-parser": "7.0.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "xlsx": "^0.18.5"
+    "robots-parser": "3.0.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "yauzl": "3.4.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.2.17",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.5",
+    "eslint-config-next": "16.4.6",
     "tailwindcss": "^4",
+    "tsx": "4.20.6",
     "typescript": "^5"
   }
 }

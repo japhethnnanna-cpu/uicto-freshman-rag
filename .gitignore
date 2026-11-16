@@ -19,6 +19,7 @@
 
 # production
 /build
+/supabase/.temp/
 
 # misc
 .DS_Store
@@ -35,6 +36,10 @@ yarn-error.log*
 .env.local
 .env*.local
 data/*.xlsx
+/data/knowledge-backups/
+/outputs/knowledge-20261114/
+/outputs/staff-check/
+/.next-audit.json
 
 # vercel
 .vercel
