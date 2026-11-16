@@ -24,6 +24,8 @@ test("production POST composes quota, 768-dimensional embedding, scoped RPC and 
     }
     if (url.hostname === "generativelanguage.googleapis.com") {
       if (url.pathname.includes("generateContent")) {
+        assert.ok(url.pathname.includes("gemini-3.5-flash-lite"));
+        assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, "minimal");
         assert.match(JSON.stringify(body.systemInstruction), /Do not write an answer/);
         return Response.json({ candidates: [{ content: { parts: [{ text: "1" }] } }] });
       }

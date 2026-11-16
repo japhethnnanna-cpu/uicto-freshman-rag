@@ -4,7 +4,7 @@
 
 - Applied the reviewed-knowledge and staff-dashboard migrations to UICTO Fbot, with local filenames aligned to recorded remote versions. Existing knowledge remains 28 approved and 38 pending records.
 - Added staff-only question tracking, document text upload, explicit Q&A review, expiry/session checks and audited withdrawal. Live Auth/API tests covered staff access, student denial, cross-origin denial, pending uploads and sign-out. Temporary test accounts and documents were removed.
-- Live Gemini generation works. Chat returned a friendly greeting, a sourced university contact answer, and an explicit abstention on unsupported 2026/2027 Computer Science tuition. NVIDIA generation timed out; key validity is not established by its models-list endpoint.
+- Live Gemini generation works. The first preview exposed HTTP 404 for deprecated Gemini 2.5 Flash; selection was migrated to Gemini 3.5 Flash-Lite. Chat returned a friendly greeting, a sourced university contact answer, and an explicit abstention on unsupported 2026/2027 Computer Science tuition. NVIDIA generation timed out; key validity is not established by its models-list endpoint.
 - 29 automated tests passed; lint and production build passed. Production dependency audit: zero vulnerabilities. Seven moderate development-tool advisories remain in the TypeScript ESLint/minimatch dependency chain after compatible updates.
 - Windows browser-control policy blocked visual interaction testing in this session. API/HTTP checks do not establish visual layout or clicking behavior.
 
