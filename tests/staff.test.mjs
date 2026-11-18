@@ -41,6 +41,19 @@ test("pending edits may remain unfinished but approval requires authoritative ev
   const complete={...draft,answer:"See the university contact page for guidance.",claim_key:"library-location",expires_on:"2026-12-01",confirmed:true};
   for(const source of ["","https://example.com/fiction","javascript:alert(1)"]) assert.throws(()=>pendingInput({...complete,source},true,now),/source URL/);
   assert.equal(pendingInput({...complete,source:"https://uicto.edu.ng/contact"},true,now).source,"https://uicto.edu.ng/contact");
-  assert.ok(pendingInput({...complete,staff_document_id:"00000000-0000-4000-8000-000000000001"},true,now).staff_document_id);
+  assert.equal(pendingInput({...complete,staff_document_id:"00000000-0000-4000-8000-000000000001"},true,now).staff_document_id,"00000000-0000-4000-8000-000000000001");
   assert.throws(()=>pendingInput({...complete,staff_document_id:"bad-id"},true,now));
+});
+
+// Change only the answer so another invalid field cannot mask a missing guard.
+test("approval rejects empty and unresolved answers but drafts retain them", () => {
+  const now = new Date("2026-11-16T00:00:00Z");
+  const valid = { question:"Where is the library?", answer:"See the signed campus guide.", category:"Library", claim_key:"library-location", academic_session:"2026/2027", expires_on:"2026-12-01", confirmed:true, source:"https://uicto.edu.ng/contact" };
+  assert.equal(pendingInput(valid,true,now).answer,valid.answer);
+  for (const answer of ["", "   ", "not available in the reviewed sources", "Not verified.", "Awaiting staff confirmation", "To be confirmed", "TBD", "N/A"]) {
+    assert.throws(()=>pendingInput({...valid,answer},true,now),/answer|unresolved/i);
+    assert.throws(()=>reviewInput({...valid,answer},now),/answer|unresolved/i);
+    assert.equal(pendingInput({...valid,answer},false,now).answer,answer.trim());
+  }
+  assert.equal(reviewInput({...valid,answer:"School-fee payment is not available."},now).answer,"School-fee payment is not available.");
 });

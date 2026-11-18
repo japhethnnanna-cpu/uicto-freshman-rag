@@ -96,12 +96,14 @@ export async function POST(req) {
       });
     }
     if (body.action === "withdraw") {
-      if (!Number.isSafeInteger(body.id) || body.id < 1)
+      if (!Number.isSafeInteger(body.id) || body.id < 1 || !Number.isSafeInteger(body.review_version) || body.review_version < 0)
         throw new StaffError("Choose an answer.");
       const { error } = await db.rpc("withdraw_staff_answer", {
         knowledge_id: body.id,
         reviewer: user.id,
+        expected_version: body.review_version,
       });
+      if (error?.code === "40001") throw new StaffError("This record changed. Refresh before withdrawing it.", 409);
       if (error) throw Error("Withdrawal unavailable");
       return privateJson({
         message: "Answer withdrawn. It will no longer be retrieved.",

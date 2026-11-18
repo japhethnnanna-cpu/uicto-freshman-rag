@@ -626,6 +626,7 @@ export default function StaffDashboard() {
                                     await api("knowledge", {
                                       action: "withdraw",
                                       id: item.id,
+                                      review_version: item.review_version,
                                     })
                                   ).message,
                                 );
