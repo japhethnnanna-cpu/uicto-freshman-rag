@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import styles from "./staff.module.css";
+import KnowledgeReview from "./knowledge-review";
 
 const labels = {
   supported_excerpt: "Answered from reviewed guidance",
@@ -29,6 +30,8 @@ export default function StaffDashboard() {
   const [knowledge, setKnowledge] = useState([]),
     [filter, setFilter] = useState(""),
     [page, setPage] = useState(0);
+  const [knowledgeFilter, setKnowledgeFilter] = useState("pending");
+  const [editing, setEditing] = useState(null);
   const [dateBounds] = useState(() => ({
     today: new Date().toISOString().slice(0, 10),
     latest: new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10),
@@ -522,56 +525,130 @@ export default function StaffDashboard() {
               <h2>Knowledge base</h2>
               <p>
                 Latest 500 records. Pending or expired records are excluded from
-                answers. To correct an approved answer, withdraw it and publish
-                a reviewed replacement from its source document.
+                answers. Edit pending answers below, save drafts, or approve
+                answers after verifying their sources. To edit an approved
+                answer, withdraw it first.
               </p>
-              {knowledge.map((item) => (
-                <article key={item.id} className={styles.card}>
-                  <div className={styles.row}>
-                    <strong>
-                      {item.external_id} · {item.review_status}
-                      {item.expires_on &&
-                      item.expires_on < new Date().toISOString().slice(0, 10)
-                        ? " · expired"
-                        : ""}
-                    </strong>
-                    {item.review_status === "approved" && (
-                      <button
-                        disabled={busy}
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              "Withdraw this answer from the chatbot? Its record will be preserved.",
-                            )
-                          )
+              <label>
+                Filter knowledge records
+                <select
+                  value={knowledgeFilter}
+                  onChange={(event) => setKnowledgeFilter(event.target.value)}
+                >
+                  <option value="pending">
+                    Pending review (
+                    {
+                      knowledge.filter(
+                        (item) => item.review_status === "pending",
+                      ).length
+                    }
+                    )
+                  </option>
+                  <option value="approved">
+                    Approved (
+                    {
+                      knowledge.filter(
+                        (item) => item.review_status === "approved",
+                      ).length
+                    }
+                    )
+                  </option>
+                  <option value="all">All records</option>
+                </select>
+              </label>
+              {editing && (
+                <KnowledgeReview
+                  key={editing.id + ":" + editing.review_version}
+                  record={editing}
+                  documents={documents}
+                  busy={busy}
+                  dateBounds={dateBounds}
+                  notice={notice}
+                  onCancel={() => setEditing(null)}
+                  onReadDocument={(id, show) =>
+                    run(async () => {
+                      const source = (await api("documents?id=" + id))
+                        .documents;
+                      show(source.content);
+                    })
+                  }
+                  onSave={(body) =>
+                    run(async () => {
+                      const result = await api("knowledge", body);
+                      setNotice(result.message);
+                      setEditing(null);
+                      await refresh();
+                    })
+                  }
+                />
+              )}
+              {knowledge
+                .filter(
+                  (item) =>
+                    knowledgeFilter === "all" ||
+                    item.review_status === knowledgeFilter,
+                )
+                .map((item) => (
+                  <article key={item.id} className={styles.card}>
+                    <div className={styles.row}>
+                      <strong>
+                        {item.external_id} · {item.review_status}
+                        {item.expires_on &&
+                        item.expires_on < new Date().toISOString().slice(0, 10)
+                          ? " · expired"
+                          : ""}
+                      </strong>
+                      {item.review_status === "pending" && (
+                        <button
+                          disabled={busy}
+                          onClick={() =>
                             run(async () => {
-                              setNotice(
-                                (
-                                  await api("knowledge", {
-                                    action: "withdraw",
-                                    id: item.id,
-                                  })
-                                ).message,
-                              );
-                              await refresh();
-                            });
-                        }}
-                      >
-                        Withdraw answer
-                      </button>
-                    )}
-                  </div>
-                  <h3>{item.question}</h3>
-                  <p className={styles.answer}>{item.answer}</p>
-                  <small>
-                    {item.category} ·{" "}
-                    {item.academic_session || "Across sessions"} · Review
-                    expires {item.expires_on || "not set"}
-                  </small>
-                  <p>Source: {item.source || "No source recorded"}</p>
-                  <p>Claim: {item.claim_key || "Not assigned"}</p>
-                </article>
-              ))}
+                              setDocuments((await api("documents")).documents);
+                              setEditing(item);
+                            })
+                          }
+                        >
+                          Edit & review
+                        </button>
+                      )}
+                      {item.review_status === "approved" && (
+                        <button
+                          disabled={busy}
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                "Withdraw this answer from the chatbot? Its record will be preserved.",
+                              )
+                            )
+                              run(async () => {
+                                setNotice(
+                                  (
+                                    await api("knowledge", {
+                                      action: "withdraw",
+                                      id: item.id,
+                                      review_version: item.review_version,
+                                    })
+                                  ).message,
+                                );
+                                await refresh();
+                              });
+                          }}
+                        >
+                          Withdraw answer
+                        </button>
+                      )}
+                    </div>
+                    <h3>{item.question}</h3>
+                    <p className={styles.answer}>{item.answer}</p>
+                    <small>
+                      {item.category} ·{" "}
+                      {item.academic_session || "Across sessions"} · Review
+                      expires {item.expires_on || "not set"}
+                    </small>
+                    <p>Source: {item.source || "No source recorded"}</p>
+                    <p>Claim: {item.claim_key || "Not assigned"}</p>
+                  </article>
+                ))}
             </section>
           )}
         </>
