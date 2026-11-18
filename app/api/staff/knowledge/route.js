@@ -82,7 +82,7 @@ export async function POST(req) {
         approve,
         answer_embedding: vector,
       });
-      if (error?.code === "40001")
+      if (["40001", "PT409"].includes(error?.code))
         throw new StaffError(
           "This record changed. Close the editor and refresh before reviewing again.",
           409,
@@ -103,7 +103,7 @@ export async function POST(req) {
         reviewer: user.id,
         expected_version: body.review_version,
       });
-      if (error?.code === "40001") throw new StaffError("This record changed. Refresh before withdrawing it.", 409);
+      if (["40001", "PT409"].includes(error?.code)) throw new StaffError("This record changed. Refresh before withdrawing it.", 409);
       if (error) throw Error("Withdrawal unavailable");
       return privateJson({
         message: "Answer withdrawn. It will no longer be retrieved.",

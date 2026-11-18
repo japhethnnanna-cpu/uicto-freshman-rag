@@ -31,6 +31,7 @@ test("migration and retrieval against disposable PostgreSQL with pgvector", asyn
   await db.exec(await readFile(new URL("../supabase/migrations/20261116000631_staff_dashboard.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/20261116004324_staff_pending_review.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/20261117145237_harden_staff_review.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/20261118050608_staff_review_conflict_status.sql", import.meta.url), "utf8"));
   const rows = async (sql, params) => (await db.query(sql, params)).rows;
   const v = JSON.stringify(
     Array.from({ length: 768 }, (_, i) => (i === 0 ? 1 : 0)),
@@ -109,7 +110,7 @@ test("migration and retrieval against disposable PostgreSQL with pgvector", asyn
     for (const role of ["anon","authenticated"]) assert.equal((await rows("select has_function_privilege($1,'review_pending_answer(bigint,integer,uuid,jsonb,boolean,extensions.vector)','execute') ok",[role]))[0].ok,false);
     assert.equal((await call(0,draft,false))[0].version,1);
     assert.deepEqual(await rows("select external_id,question,review_status,embedding,reviewed_on from school_knowledge where id=$1",[id]),[{external_id:"review-fixture",question:draft.question,review_status:"pending",embedding:null,reviewed_on:null}]);
-    await assert.rejects(call(0,draft,false),/Record changed/);
+    await assert.rejects(call(0,draft,false),(error)=>error.code==="PT409" && /Record changed/.test(error.message));
     const expires=(await rows("select (current_date+7)::text expires"))[0].expires;
     const approved={...draft,answer:"Verified synthetic fixture answer.",expires_on:expires};
     await assert.rejects(call(1,approved,true),/Verified answer/);
@@ -126,7 +127,7 @@ test("migration and retrieval against disposable PostgreSQL with pgvector", asyn
     assert.equal((await rows("select review_version from school_knowledge where id=$1",[id]))[0].review_version,1);
     assert.equal((await call(1,approved,true,v))[0].version,2);
     assert.ok((await match("2026/2027")).some(row=>row.answer===approved.answer));
-    await assert.rejects(call(2,draft,false),/Record changed/);
+    await assert.rejects(call(2,draft,false),(error)=>error.code==="PT409" && /Record changed/.test(error.message));
     const audit=await rows("select action,before_record,after_record from staff_audit where knowledge_id=$1 order by id",[id]);
     assert.deepEqual(audit.map(row=>row.action),["edit_pending","approve_pending"]);
     assert.equal(audit[0].before_record.question,"Fixture question");
@@ -135,9 +136,9 @@ test("migration and retrieval against disposable PostgreSQL with pgvector", asyn
     await rows("select withdraw_staff_answer($1,$2,$3)",[id,reviewer,2]);
     assert.equal((await rows("select review_version from school_knowledge where id=$1",[id]))[0].review_version,3);
     assert.ok(!(await match("2026/2027")).some(row=>row.answer===approved.answer));
-    await assert.rejects(rows("select withdraw_staff_answer($1,$2,$3)",[id,reviewer,3]),/Record changed/);
+    await assert.rejects(rows("select withdraw_staff_answer($1,$2,$3)",[id,reviewer,3]),(error)=>error.code==="PT409" && /Record changed/.test(error.message));
     assert.equal((await call(3,approved,true,v))[0].version,4);
-    await assert.rejects(rows("select withdraw_staff_answer($1,$2,$3)",[id,reviewer,2]),/Record changed/);
+    await assert.rejects(rows("select withdraw_staff_answer($1,$2,$3)",[id,reviewer,2]),(error)=>error.code==="PT409" && /Record changed/.test(error.message));
     assert.equal((await rows("select review_status from school_knowledge where id=$1",[id]))[0].review_status,"approved");
     assert.ok((await match("2026/2027")).some(row=>row.answer===approved.answer));
     await rows("select withdraw_staff_answer($1,$2,$3)",[id,reviewer,4]);
